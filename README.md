@@ -1,2 +1,47 @@
-# k-ship-labprep
-Team LabPrep's GA-based Assembly Line Scheduling Optimization for K-Shipbuilding Hackathon
+# 🚢 유전 알고리즘 기반 선박 조립 공정 작업자 동적 배정 및 스케줄링 시스템
+> **2026 K-조선 해커톤 참가 프로젝트 (생산 부문 AX 솔루션)**  
+> **팀명: 실험준비실 (Team LabPrep)**
+
+---
+
+## 📌 1. 연구 배경 및 문제 정의
+- **문제점:** 조선 중·소조립 공정에서 작업자 50명을 최적 배정하는 경우의 수는 $50!$에 달해 전통적인 수리적 완전 탐색으로는 익일 작업 지시표 생성이 불가능합니다.
+- **해결책:** 현장의 복잡한 4대 제약 조건을 반영한 수리 모델링을 설계하고, **유전 알고리즘(Genetic Algorithm)**을 적용하여 **5분 이내에 90점 이상의 준최적 작업 스케줄**을 도출합니다.
+
+---
+
+## 📐 2. 수리적 모델링 (Mathematical Modeling)
+
+### 🎯 목적 함수 (Objective Function)
+- **최대 완료 시간(Makespan) 최소화:** 전체 블록 조립의 최종 완료 시점을 최소화
+- **유휴 시간(Idle Time) 최소화:** 작업자 및 조립장의 대기 시간을 최소화
+
+### 🔒 제약 조건 (Constraints)
+1. **선행 공정 제약:** A 블록 조립이 완료되어야 결합 대상인 B 블록 작업 착수 가능
+2. **자원 제약:** 1명의 작업자는 동일 시간대에 2개 이상의 블록에 동시 투입 불가
+3. **숙련도 제약:** 난이도가 높은 블록 작업에는 기준 경력 이상의 숙련 작업자가 필수 포함
+4. **공간 제약:** 동일 조립장 구역에는 물리적 한계로 동시 3개 초과의 블록 진입 불가
+
+---
+
+## 🧬 3. 유전 알고리즘 설계 (Genetic Algorithm Architecture)
+1. **초기 세대 생성:** 제약 조건을 만족하는 초기 후보 스케줄 1,000개 무작위 생성
+2. **적자 생존 (Selection):** 목적 함수 및 페널티 기반 상위 100개 우수 스케줄 선발
+3. **유전자 교차 (Crossover):** 우수 스케줄 간의 블록-작업자 배정 정보를 결합하여 차세대 스케줄 도출
+4. **돌연변이 (Mutation):** 지역 최적점(Local Optimum) 탈출을 위해 특정 확률로 무작위 재배치 수행
+
+---
+
+## 🛠️ 4. 기술 스택 (Tech Stack)
+- **Language:** Python 3.10+
+- **Optimization:** Genetic Algorithm, DEAP / Custom GA Module
+- **Analysis & Visualization:** Pandas, NumPy, Plotly
+- **Interactive UI:** Streamlit
+
+---
+
+## 👥 5. 팀원 및 역할 (Team LabPrep)
+- **실험준비실 (Team LabPrep)**
+  - 수리적 모델링 및 4대 제약조건 설계
+  - 유전 알고리즘(GA) 기반 스케줄러 개발
+  - Streamlit 대시보드 및 간트차트 시각화
