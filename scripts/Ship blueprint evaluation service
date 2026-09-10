@@ -1,0 +1,48 @@
+import chromadb
+import google.generativeai as genai
+from PIL import Image
+
+# 1. API 설정
+GOOGLE_API_KEY = "AI API"
+genai.configure(api_key=GOOGLE_API_KEY)
+
+# 최신 모델명 적용
+model_name = 'gemini-3.6-flash' 
+model = genai.GenerativeModel(model_name)
+
+# 2. 로컬에 저장된 DB 불러오기
+db_persist_path = r"C:\Users\김민성\Desktop\kkkk\chroma_db"
+chroma_client = chromadb.PersistentClient(path=db_persist_path)
+collection = chroma_client.get_collection(name="ship_rules")
+
+# 3. 사용자 입력 받기 (따옴표 자동 제거 적용)
+print("\n[선박 규정 검토 시스템을 시작합니다]")
+owner_requirement = input("선주 요구사항을 입력하세요: ")
+image_input_path = input("도면 이미지 파일의 전체 경로를 입력하세요 (예: C:\\...\\image.png): ").strip().strip('"').strip("'")
+
+# 이미지 파일 로드
+ship_drawing = Image.open(image_input_path)
+
+# 4. 규정 검색
+print("\n관련 규정 검색 중...")
+results = collection.query(query_texts=[owner_requirement], n_results=3)
+retrieved_rule = "\n".join(results['documents'][0])
+
+# 5. AI 판정
+print("AI 판정 중...")
+prompt = f"""
+너는 조선 해양 규정 검토 전문가야. 첨부된 도면을 시각적으로 분석해 줘.
+다음 [규정 원문]을 바탕으로 [선주 요구사항]이 적합한지 검토해.
+오직 제공된 규정 원문만을 판단 근거로 삼아야 해.
+만약 충돌하거나 부적합하다면, 구체적으로 어떤 부분이 부적합하고 어떻게 수정해야 하는지 피드백을 줘.
+
+주의사항: 수식이나 특수 기호를 출력할 때 LaTeX 문법(예: $, \\frac, \\le 등)을 절대 사용하지 말고, 반드시 모든 내용을 기호 없이 일반 텍스트로 풀어서 작성해.
+
+[규정 원문]: {retrieved_rule}
+[선주 요구사항]: {owner_requirement}
+"""
+
+# 텍스트 프롬프트와 이미지 객체를 동시에 전송
+response = model.generate_content([prompt, ship_drawing])
+print("\n=== AI 최종 판정 결과 ===\n")
+print(response.text)
