@@ -1,0 +1,12 @@
+services:
+  blockflow-ui:
+    image: blockflow-ui:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: blockflow-ui
+    ports:
+      - "3000:80"
+    restart: unless-stopped
+
+
