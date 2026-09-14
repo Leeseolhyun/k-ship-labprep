@@ -4,7 +4,7 @@ import RequirementList from "../components/compliance/RequirementList";
 import DrawingUploader from "../components/compliance/DrawingUploader";
 import ComplianceResultView from "../components/compliance/ComplianceResultView";
 import { useBanner } from "../context/BannerContext";
-import { fetchComplianceResult } from "../mock/compliance";
+import { fetchComplianceResult } from "../api/complianceApi";
 import type {
   ComplianceResult,
   DrawingImage,
@@ -28,21 +28,34 @@ export default function CompliancePage() {
       setError("선주 요구사항을 하나 이상 입력해 주세요.");
       return;
     }
+    if (images.length === 0) {
+      setError("도면 이미지를 하나 이상 업로드해 주세요.");
+      return;
+    }
     setError("");
     setLoading(true);
     setResult(null);
-    const data = await fetchComplianceResult(
-      requirements.filter((r) => r.text.trim()),
-      images
-    );
-    setResult(data);
-    setLoading(false);
-    pushBanner({
-      type: "compliance",
-      title: "도면 규정 검토 결과 도착",
-      message: `${data.status === "적합" ? "적합 판정" : `부적합 ${data.violatedRules.length}건 확인`} - ${data.summary}`,
-      link: "/compliance",
-    });
+    try {
+      const data = await fetchComplianceResult(
+        requirements.filter((r) => r.text.trim()),
+        images
+      );
+      setResult(data);
+      pushBanner({
+        type: "compliance",
+        title: "도면 규정 검토 결과 도착",
+        message: `${data.status === "적합" ? "적합 판정" : `부적합 ${data.violatedRules.length}건 확인`} - ${data.summary}`,
+        link: "/compliance",
+      });
+    } catch (e) {
+      setError(
+        e instanceof Error
+          ? e.message
+          : "AI 판정 요청에 실패했습니다. 백엔드 서버가 실행 중인지 확인해 주세요."
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
