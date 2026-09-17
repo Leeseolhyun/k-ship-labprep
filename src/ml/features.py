@@ -16,15 +16,10 @@ NUMERIC_FEATURES = [
     "curvature_ratio",
     "difficulty",
     "n_crew",
-    "n_senior",
-    "n_junior",
-    "avg_career",
-    "crew_skill_factor",
     "manhour_share",
     "planned_manhour",
     "weld_per_part",       # 파생: 부재당 용접 길이
     "weld_per_ton",        # 파생: 톤당 용접 길이 (구조 복잡도 대리지표)
-    "senior_ratio",        # 파생: 고급 인력 비율
 ]
 
 CATEGORICAL_FEATURES = ["ship_type", "process", "confined_space"]
@@ -42,15 +37,10 @@ FEATURE_LABELS = {
     "curvature_ratio": "곡면 비율",
     "difficulty": "블록 난이도",
     "n_crew": "투입 인원",
-    "n_senior": "고급 인력 수",
-    "n_junior": "초급 인력 수",
-    "avg_career": "평균 경력(년)",
-    "crew_skill_factor": "숙련도 계수",
     "manhour_share": "공정 공수 비중",
     "planned_manhour": "계획 공수",
     "weld_per_part": "부재당 용접 길이",
     "weld_per_ton": "톤당 용접 길이",
-    "senior_ratio": "고급 인력 비율",
     "ship_type": "선종",
     "process": "공정",
     "confined_space": "밀폐공간 여부",
@@ -61,7 +51,6 @@ def add_derived(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
     df["weld_per_part"] = df["weld_length_m"] / df["n_parts"].clip(lower=1)
     df["weld_per_ton"] = df["weld_length_m"] / df["weight_ton"].clip(lower=0.1)
-    df["senior_ratio"] = df["n_senior"] / df["n_crew"].clip(lower=1)
     return df
 
 

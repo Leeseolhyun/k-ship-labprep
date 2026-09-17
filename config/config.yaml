@@ -12,8 +12,8 @@ paths:
   output_dir: outputs
   blocks_csv: data/raw/blocks.csv
   jobs_csv: data/raw/jobs.csv
-  workers_csv: data/raw/workers.csv
-  attendance_csv: data/raw/attendance.csv
+  sectors_csv: data/raw/sectors.csv
+  sector_availability_csv: data/raw/sector_availability.csv
   precedence_csv: data/raw/precedence.csv
   model_file: models/manhour_lgbm.joblib
   metrics_file: models/metrics.json
@@ -21,17 +21,15 @@ paths:
 # ---------------------------------------------------------------------
 # 당일 근태 스냅샷 (사내 근태 API가 최종적으로 채워 줄 데이터 계약)
 # ---------------------------------------------------------------------
-attendance:
+sector_availability:
   work_date: "2026-03-02"
-  demo_absence_rate: 0.14
-  demo_late_rate: 0.06
+  demo_shortage_rate: 0.14
 
 # ---------------------------------------------------------------------
 # 1. 합성 데이터 생성 파라미터 (물리 기반)
 # ---------------------------------------------------------------------
 synth:
   n_blocks: 400           # 학습용 블록 수 (이력 데이터 → 작업 1,600건)
-  n_workers: 50           # 작업자 풀
   n_zones: 6              # 조립장 구역 수
   zone_capacity: 3        # 구역당 동시 진입 가능 블록 수 (공간 제약)
   ship_types:
@@ -45,12 +43,12 @@ synth:
     - {code: FIT,   name: 취부,  manhour_share: 0.28, min_crew: 2, max_crew: 6}
     - {code: WELD,  name: 용접,  manhour_share: 0.45, min_crew: 2, max_crew: 8}
     - {code: GRIND, name: 사상,  manhour_share: 0.15, min_crew: 1, max_crew: 4}
-  # 숙련도 등급별 공수 계수 (낮을수록 빠름) / 인건비 지수
-  skill_levels:
-    초급: {factor: 1.35, cost: 1.00, min_career: 0}
-    중급: {factor: 1.00, cost: 1.35, min_career: 3}
-    고급: {factor: 0.82, cost: 1.80, min_career: 7}
-  skill_ratio: [0.35, 0.45, 0.20]   # 초급 / 중급 / 고급 비율
+  # 공정별 고정 섹터. 시스템은 섹터 간 인력 이동을 제안하지 않는다.
+  sectors:
+    - {sector_id: CUT_A, process: CUT, planned_headcount: 9}
+    - {sector_id: FIT_A, process: FIT, planned_headcount: 12}
+    - {sector_id: WELD_A, process: WELD, planned_headcount: 18}
+    - {sector_id: GRIND_A, process: GRIND, planned_headcount: 11}
   noise_sigma: 0.13                 # 실적 공수 로그정규 잡음 (현장 변동성)
 
 # ---------------------------------------------------------------------
@@ -93,7 +91,6 @@ ga:
 # 적합도 가중치 (목적함수)
 fitness_weights:
   makespan: 1.00              # 최대 완료 시간
-  idle: 0.35                  # 작업자 유휴 시간
-  balance: 0.25               # 작업 부하 표준편차 (라인 밸런싱)
+  idle: 0.35                  # 섹터 유휴 생산능력
+  balance: 0.25               # 섹터 부하 표준편차 (라인 밸런싱)
   tardiness: 1.50             # 납기 지연 (페널티 성격)
-  skill_violation: 5.00       # 숙련도 제약 위반 (하드 제약 → 대형 페널티)

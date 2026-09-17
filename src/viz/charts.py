@@ -20,7 +20,6 @@ def gantt_chart(schedule: pd.DataFrame, color_by: str = "process", height: int =
     df = schedule.copy()
     df["start_dt"] = pd.to_datetime(df["start_dt"])
     df["end_dt"] = pd.to_datetime(df["end_dt"])
-    df["crew_str"] = df["crew"].astype(str)
 
     fig = px.timeline(
         df,
@@ -29,7 +28,7 @@ def gantt_chart(schedule: pd.DataFrame, color_by: str = "process", height: int =
         y="block_id",
         color=color_by,
         color_discrete_map=PROC_COLORS if color_by == "process" else None,
-        hover_data=["job_id", "duration_min", "n_crew", "n_senior", "zone", "crew_str"],
+        hover_data=["job_id", "sector_id", "duration_min", "assigned_headcount", "zone"],
     )
     fig.update_yaxes(autorange="reversed", title="블록")
     fig.update_layout(
@@ -42,20 +41,15 @@ def gantt_chart(schedule: pd.DataFrame, color_by: str = "process", height: int =
     return fig
 
 
-def worker_load_chart(load: pd.DataFrame, height: int = 520) -> go.Figure:
+def sector_load_chart(load: pd.DataFrame, height: int = 420) -> go.Figure:
+    """개인별 부하 대신 고정 섹터별 익명 생산능력 부하를 보여 준다."""
     df = load.sort_values("load_rate", ascending=False)
-    fig = px.bar(
-        df, x="worker_id", y="load_rate", color="skill",
-        color_discrete_map={"초급": "#9ecae1", "중급": "#4C78A8", "고급": "#08306b"},
-        hover_data=["busy_hours"],
-    )
-    mean_rate = df["load_rate"].mean()
-    fig.add_hline(y=mean_rate, line_dash="dash", line_color="#888",
-                  annotation_text=f"평균 {mean_rate:.1f}%")
-    fig.update_layout(
-        height=height, xaxis_title="작업자", yaxis_title="부하율 (%)",
-        margin=dict(l=10, r=10, t=30, b=10),
-    )
+    fig = px.bar(df, x="sector_id", y="load_rate", color="process",
+                 hover_data=["available_headcount", "busy_hours"])
+    average = df["load_rate"].mean()
+    fig.add_hline(y=average, line_dash="dash", line_color="#888", annotation_text=f"평균 {average:.1f}%")
+    fig.update_layout(height=height, xaxis_title="고정 섹터", yaxis_title="가동률 (%)",
+                      margin=dict(l=10, r=10, t=30, b=10))
     return fig
 
 

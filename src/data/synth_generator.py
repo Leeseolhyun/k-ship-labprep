@@ -8,7 +8,7 @@
 
 생성 산출물
   blocks.csv      : 블록 제원 (도면/BOM 에서 나올 항목과 동일 스키마)
-  workers.csv     : 작업자 풀 (숙련도, 경력, 용접 자격)
+  sectors.csv     : 공정별 고정 섹터의 계획 인원 (개인 식별 정보 없음)
   jobs.csv        : 블록 × 공정 단위 작업 + 과거 실적 공수
   precedence.csv  : 블록 간 선행 관계 (대조립 결합 순서)
 """
@@ -40,39 +40,22 @@ def crew_efficiency(n_crew: int, decay: float) -> float:
     return float(max(0.45, 1.0 - decay * (n_crew - 1)))
 
 
-def job_duration_min(
-    manhour: float, skill_factor: float, n_crew: int, decay: float
-) -> float:
-    """작업 소요시간 [min]. 공수를 인원·효율·숙련도로 나눈 값."""
+def job_duration_min(manhour: float, n_crew: int, decay: float) -> float:
+    """작업 소요시간 [min]. 섹터가 투입한 인원과 병렬 효율만 사용한다."""
     eff = crew_efficiency(n_crew, decay)
-    return float(manhour * skill_factor / (n_crew * eff) * 60.0)
+    return float(manhour / (n_crew * eff) * 60.0)
 
 
 # ---------------------------------------------------------------------
 # 생성 루틴
 # ---------------------------------------------------------------------
-def generate_workers(cfg: Dict[str, Any], rng: np.random.Generator) -> pd.DataFrame:
-    n = cfg["synth"]["n_workers"]
-    levels = list(cfg["synth"]["skill_levels"].keys())
-    ratio = np.array(cfg["synth"]["skill_ratio"], dtype=float)
-    ratio /= ratio.sum()
-    skills = rng.choice(levels, size=n, p=ratio)
+def generate_sectors(cfg: Dict[str, Any]) -> pd.DataFrame:
+    """고정 공정 섹터 마스터를 만든다.
 
-    rows = []
-    for i, sk in enumerate(skills):
-        spec = cfg["synth"]["skill_levels"][sk]
-        lo = spec["min_career"]
-        career = float(np.clip(rng.normal(lo + 3.0, 2.0), lo, 30.0))
-        rows.append({
-            "worker_id": f"W{i+1:03d}",
-            "skill": sk,
-            "career_years": round(career, 1),
-            "skill_factor": spec["factor"],
-            "cost_index": spec["cost"],
-            # 고급은 전원, 중급은 60% 가 선급 용접 자격 보유로 가정
-            "certified_welder": bool(sk == "고급" or (sk == "중급" and rng.random() < 0.6)),
-        })
-    return pd.DataFrame(rows)
+    개인·경력·등급은 저장하지 않는다. 계획 인원은 섹터가 동시에 쓸 수 있는
+    익명 생산능력이며, 구성원 평가나 섹터 이동 지시에는 사용하지 않는다.
+    """
+    return pd.DataFrame(cfg["synth"]["sectors"])
 
 
 def generate_blocks(cfg: Dict[str, Any], rng: np.random.Generator, n_blocks: int) -> pd.DataFrame:
@@ -137,46 +120,36 @@ def generate_precedence(
     return pd.DataFrame(rows, columns=["pred_block", "succ_block"])
 
 
-def generate_jobs(
-    cfg: Dict[str, Any], blocks: pd.DataFrame, workers: pd.DataFrame, rng: np.random.Generator
-) -> pd.DataFrame:
+def generate_jobs(cfg: Dict[str, Any], blocks: pd.DataFrame, rng: np.random.Generator) -> pd.DataFrame:
     """블록 × 공정 단위 작업 + 과거 실적(타깃) 생성."""
     eng = cfg["engineering"]
     decay = eng["crew_efficiency_decay"]
     procs = cfg["synth"]["processes"]
-    skill_spec = cfg["synth"]["skill_levels"]
     sigma = cfg["synth"]["noise_sigma"]
+    sector_by_process = {s["process"]: s["sector_id"] for s in cfg["synth"]["sectors"]}
 
     rows = []
     for _, b in blocks.iterrows():
         for p in procs:
             planned_mh = b["std_manhour"] * p["manhour_share"]
 
-            # 과거 실적: 어떤 조합의 인원이 투입됐었는지 무작위 재현
+            # 과거 실적: 고정 섹터가 이 작업에 투입한 인원 수만 재현한다.
             n_crew = int(rng.integers(p["min_crew"], p["max_crew"] + 1))
-            crew = workers.sample(n_crew, random_state=int(rng.integers(1 << 31)))
-            skill_factor = float(crew["skill_factor"].mean())
-            n_senior = int((crew["skill"] == "고급").sum())
-            n_junior = int((crew["skill"] == "초급").sum())
-            avg_career = float(crew["career_years"].mean())
-
-            # 실적 공수 = 표준 공수 × 숙련도 계수 × 로그정규 잡음
+            # 실적 공수는 물량 특성과 현장 변동성의 함수이며 개인 평가는 쓰지 않는다.
             noise = float(rng.lognormal(0.0, sigma))
-            # 고난도 블록에 고급 인력이 없으면 재작업으로 공수가 더 튄다
             rework = 1.0
-            if b["difficulty"] >= 1.15 and n_senior == 0:
-                rework = float(rng.uniform(1.10, 1.35))
             if b["confined_space"] and p["code"] in ("WELD", "GRIND"):
                 rework *= 1.12
 
-            actual_mh = planned_mh * skill_factor * noise * rework
-            dur = job_duration_min(actual_mh / skill_factor, skill_factor, n_crew, decay)
+            actual_mh = planned_mh * noise * rework
+            dur = job_duration_min(actual_mh, n_crew, decay)
 
             rows.append({
                 "job_id": f"{b['block_id']}-{p['code']}",
                 "block_id": b["block_id"],
                 "process": p["code"],
                 "process_name": p["name"],
+                "sector_id": sector_by_process[p["code"]],
                 "ship_type": b["ship_type"],
                 "weight_ton": b["weight_ton"],
                 "n_parts": b["n_parts"],
@@ -187,10 +160,6 @@ def generate_jobs(
                 "confined_space": b["confined_space"],
                 "zone": b["zone"],
                 "n_crew": n_crew,
-                "n_senior": n_senior,
-                "n_junior": n_junior,
-                "avg_career": round(avg_career, 2),
-                "crew_skill_factor": round(skill_factor, 4),
                 "planned_manhour": round(planned_mh, 3),
                 "actual_manhour": round(actual_mh, 3),
                 "duration_min": round(dur, 1),
@@ -212,8 +181,8 @@ def generate_all(
 ) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     rng = np.random.default_rng(cfg["seed"])
     n_blocks = n_blocks or cfg["synth"]["n_blocks"]
-    workers = generate_workers(cfg, rng)
+    sectors = generate_sectors(cfg)
     blocks = generate_blocks(cfg, rng, n_blocks)
     prec = generate_precedence(blocks, rng)
-    jobs = generate_jobs(cfg, blocks, workers, rng)
-    return blocks, workers, jobs, prec
+    jobs = generate_jobs(cfg, blocks, rng)
+    return blocks, sectors, jobs, prec
