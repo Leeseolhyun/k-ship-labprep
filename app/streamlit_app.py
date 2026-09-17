@@ -338,9 +338,15 @@ with what_if_tab:
     candidate_options = sorted(set(
         list(range(min_workers, available_count + 1, 5)) + [n_workers, available_count]
     ))
-    candidate_default = sorted(set([
+    # n_workers는 1명 단위 슬라이더라 5명 단위 비교 옵션에 없을 수 있다.
+    # 기본값도 반드시 option 집합의 원소만 넘겨 Streamlit 렌더 오류를 방지한다.
+    preferred_counts = [
         max(min_workers, n_workers - 10), n_workers, min(available_count, n_workers + 10)
-    ]))
+    ]
+    candidate_default = sorted({
+        min(candidate_options, key=lambda option, value=value: abs(option - value))
+        for value in preferred_counts
+    })
     candidates = st.multiselect(
         "비교할 작업자 수", options=candidate_options, default=candidate_default,
     )
