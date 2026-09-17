@@ -1,0 +1,99 @@
+# =====================================================================
+# k-ship-labprep : 전역 설정
+# 모든 스크립트/모듈은 이 파일 하나만 바라본다.
+# =====================================================================
+
+seed: 42
+
+paths:
+  raw_dir: data/raw
+  processed_dir: data/processed
+  model_dir: models
+  output_dir: outputs
+  blocks_csv: data/raw/blocks.csv
+  jobs_csv: data/raw/jobs.csv
+  workers_csv: data/raw/workers.csv
+  attendance_csv: data/raw/attendance.csv
+  precedence_csv: data/raw/precedence.csv
+  model_file: models/manhour_lgbm.joblib
+  metrics_file: models/metrics.json
+
+# ---------------------------------------------------------------------
+# 당일 근태 스냅샷 (사내 근태 API가 최종적으로 채워 줄 데이터 계약)
+# ---------------------------------------------------------------------
+attendance:
+  work_date: "2026-03-02"
+  demo_absence_rate: 0.14
+  demo_late_rate: 0.06
+
+# ---------------------------------------------------------------------
+# 1. 합성 데이터 생성 파라미터 (물리 기반)
+# ---------------------------------------------------------------------
+synth:
+  n_blocks: 400           # 학습용 블록 수 (이력 데이터 → 작업 1,600건)
+  n_workers: 50           # 작업자 풀
+  n_zones: 6              # 조립장 구역 수
+  zone_capacity: 3        # 구역당 동시 진입 가능 블록 수 (공간 제약)
+  ship_types:
+    LNG선:        {weight_mu: 3.1, curvature: 0.55, difficulty: 1.20}
+    컨테이너선:   {weight_mu: 3.4, curvature: 0.25, difficulty: 1.00}
+    VLCC:         {weight_mu: 3.6, curvature: 0.18, difficulty: 0.95}
+    LPG선:        {weight_mu: 3.0, curvature: 0.48, difficulty: 1.12}
+  # 공정 정의 (선행 순서 = 리스트 순서)
+  processes:
+    - {code: CUT,   name: 절단,  manhour_share: 0.12, min_crew: 1, max_crew: 3}
+    - {code: FIT,   name: 취부,  manhour_share: 0.28, min_crew: 2, max_crew: 6}
+    - {code: WELD,  name: 용접,  manhour_share: 0.45, min_crew: 2, max_crew: 8}
+    - {code: GRIND, name: 사상,  manhour_share: 0.15, min_crew: 1, max_crew: 4}
+  # 숙련도 등급별 공수 계수 (낮을수록 빠름) / 인건비 지수
+  skill_levels:
+    초급: {factor: 1.35, cost: 1.00, min_career: 0}
+    중급: {factor: 1.00, cost: 1.35, min_career: 3}
+    고급: {factor: 0.82, cost: 1.80, min_career: 7}
+  skill_ratio: [0.35, 0.45, 0.20]   # 초급 / 중급 / 고급 비율
+  noise_sigma: 0.13                 # 실적 공수 로그정규 잡음 (현장 변동성)
+
+# ---------------------------------------------------------------------
+# 2. 공학 상수 (표준 공수 원단위)
+#    출처: 조선 표준공수 관행치 범위를 파라미터화한 값. docs/modeling.md 참조
+# ---------------------------------------------------------------------
+engineering:
+  weld_manhour_per_m: 0.20      # 용접 1 m 당 기준 공수 (각장 6 mm 기준)
+  leg_length_ref_mm: 6.0        # 기준 각장
+  leg_length_exponent: 1.6      # 각장 증가 시 용착금속량 ~ 각장^2 → 실무 보정 1.6
+  fitting_manhour_per_part: 0.35    # 부재 1개 취부 공수
+  handling_manhour_per_ton: 0.45    # 중량물 취급 공수
+  curvature_penalty: 0.60       # 곡면 비율 1.0 일 때 공수 60% 증가
+  crew_efficiency_decay: 0.08   # 인원 n명 투입 시 병렬 효율 = 1 - decay*(n-1)
+
+# ---------------------------------------------------------------------
+# 3. 스케줄링 대상 (익일 작업 지시 시나리오)
+# ---------------------------------------------------------------------
+scheduling:
+  n_blocks_to_schedule: 30
+  horizon_days: 7
+  shift_hours: 8              # 정규 근로시간 (근로기준법 제50조)
+  max_overtime_hours: 4       # 1일 연장 한도 (근로기준법 제53조 운용 기준)
+  day_minutes: 1440
+
+# ---------------------------------------------------------------------
+# 4. 유전 알고리즘 하이퍼파라미터
+# ---------------------------------------------------------------------
+ga:
+  population_size: 300
+  elite_size: 30              # 상위 엘리트 보존 수
+  selection_size: 100         # 적자 생존 선발 규모
+  generations: 80
+  crossover_prob: 0.85
+  mutation_prob: 0.20
+  tournament_k: 3
+  time_limit_sec: 300         # 5분 제한 (해커톤 요구사항)
+  patience: 25                # 개선 없을 시 조기 종료 세대 수
+
+# 적합도 가중치 (목적함수)
+fitness_weights:
+  makespan: 1.00              # 최대 완료 시간
+  idle: 0.35                  # 작업자 유휴 시간
+  balance: 0.25               # 작업 부하 표준편차 (라인 밸런싱)
+  tardiness: 1.50             # 납기 지연 (페널티 성격)
+  skill_violation: 5.00       # 숙련도 제약 위반 (하드 제약 → 대형 페널티)
