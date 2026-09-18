@@ -1,7 +1,6 @@
-import { Pause, Play } from "lucide-react";
+import { Activity, Pause, Play } from "lucide-react";
 import type { FactoryLogEntry } from "../../hooks/useFactorySimulation";
-import type { FactoryState, SwapSuggestion } from "../../types/factory";
-import DelayAlert from "./DelayAlert";
+import type { FactoryState } from "../../types/factory";
 import FactoryCard from "./FactoryCard";
 
 function formatRelative(at: number): string {
@@ -13,15 +12,11 @@ function formatRelative(at: number): string {
 
 export default function FactoryBoard({
   factories,
-  suggestions,
-  onApply,
   paused,
   onTogglePause,
   log,
 }: {
   factories: FactoryState[];
-  suggestions: SwapSuggestion[];
-  onApply: (s: SwapSuggestion) => void;
   paused: boolean;
   onTogglePause: () => void;
   log: FactoryLogEntry[];
@@ -30,7 +25,7 @@ export default function FactoryBoard({
     <section className="space-y-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <h2 className="text-sm font-semibold text-gray-800">실시간 공장 현황</h2>
+          <h2 className="text-sm font-semibold text-gray-800">실시간 섹터 운영 현황</h2>
           <span className="flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-semibold text-red-600">
             <span className="relative flex h-1.5 w-1.5">
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-500 opacity-75" />
@@ -49,7 +44,15 @@ export default function FactoryBoard({
         </button>
       </div>
 
-      <DelayAlert suggestions={suggestions} factories={factories} onApply={onApply} />
+      {factories.some((factory) => factory.sector.availableHeadcount < factory.sector.plannedHeadcount) && (
+        <div className="flex gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-900">
+          <Activity className="mt-0.5 shrink-0 text-amber-600" size={18} />
+          <div>
+            <p className="text-sm font-bold">섹터 가용 생산능력 확인 필요</p>
+            <p className="mt-1 text-xs leading-5 text-amber-800">계획 인원보다 가용 인원이 적은 섹터가 있습니다. 인력 이동 제안 없이, 해당 섹터 내부의 작업 순서·시작시각·대기열을 다시 계산합니다.</p>
+          </div>
+        </div>
+      )}
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {factories.map((f) => (

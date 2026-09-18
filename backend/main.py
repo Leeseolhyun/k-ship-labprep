@@ -15,7 +15,7 @@ app = FastAPI(title="SHIPMATE AI - Compliance Review Backend")
 # Vite 프론트엔드 개발 서버(기본 5173, 사용 중이면 5174 등)에서의 요청을 허용
 app.add_middleware(
     CORSMiddleware,
-    allow_origin_regex=r"http://localhost:\d+",
+    allow_origin_regex=r"http://(localhost|127\.0\.0\.1):\d+",
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -67,5 +67,6 @@ async def compliance_review(
         "summary": ai_result.get("summary", ""),
         "checkedRequirements": requirement_texts,
         "violatedRules": violated_rules,
+        "optimizationInput": ai_result.get("optimizationInput"),
         "checkedAt": datetime.now(timezone.utc).isoformat(),
     }

@@ -12,8 +12,8 @@ import { useAuth } from "../context/AuthContext";
 
 const RECENT_ACTIVITY = [
   { id: "a1", time: "오늘 09:12", text: "오션스타 8K LNGC 도면 규정 검토를 요청했습니다." },
-  { id: "a2", time: "어제 16:40", text: "화물창 블록 취부 및 용접 작업 인력 배정을 완료했습니다." },
-  { id: "a3", time: "2026-09-10", text: "핵심 인력 업무량 초과 알림을 확인했습니다." },
+  { id: "a2", time: "어제 16:40", text: "화물창 블록 취부·용접 작업의 섹터별 실행계획을 검토했습니다." },
+  { id: "a3", time: "2026-09-10", text: "블록 조립 섹터의 가용 생산능력 알림을 확인했습니다." },
 ];
 
 export default function MyPage() {

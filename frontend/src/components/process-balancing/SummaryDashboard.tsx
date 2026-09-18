@@ -21,14 +21,14 @@ export default function SummaryDashboard({
 
   const stats = [
     {
-      label: "가동 중인 공장",
+      label: "운영 중인 섹터",
       value: factories.length,
       unit: "개",
       icon: Factory,
       tone: "bg-accent-50 text-accent-600",
     },
     {
-      label: "지연 중인 공장",
+      label: "재계획 필요 섹터",
       value: delayedCount,
       unit: "개",
       icon: AlertTriangle,

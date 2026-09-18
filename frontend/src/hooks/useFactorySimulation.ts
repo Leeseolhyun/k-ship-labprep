@@ -1,17 +1,12 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createInitialFactories, generateTask } from "../mock/factories";
-import { getEffectivePace, getWorkerById } from "../lib/factorySim";
-import { getGradeScore } from "../lib/grading";
-import { JOB_TYPES } from "../types/worker";
-import type { JobType } from "../types/worker";
-import type { FactoryState, SwapSuggestion, TaskPriority } from "../types/factory";
+import type { FactoryState, TaskPriority } from "../types/factory";
 
 const TICK_MS = 1200;
 const SCHEDULE_STEP = 4;
 const DELAY_GAP = 9;
 const URGENT_DELAY_GAP = 5;
 const AHEAD_GAP = 7;
-const MIN_GRADE_GAP = 8;
 
 export interface FactoryLogEntry {
   id: string;
@@ -25,10 +20,6 @@ function computeStatus(expected: number, actual: number, priority: TaskPriority)
   if (gap > delayGap) return "지연";
   if (gap < -AHEAD_GAP) return "단축";
   return "정상";
-}
-
-function swapWorker(ids: string[], from: string, to: string): string[] {
-  return ids.map((id) => (id === from ? to : id));
 }
 
 export function useFactorySimulation() {
@@ -91,7 +82,10 @@ export function useFactorySimulation() {
             basePace = Math.min(1.5, Math.max(0.5, basePace + delta));
           }
           const draft = { ...f, basePace };
-          const effectivePace = getEffectivePace(draft);
+          // 고정 섹터의 당일 가용 인원 비율만 반영합니다. 다른 섹터의 인원을
+          // 끌어오거나 특정 작업자를 평가·이동시키지 않습니다.
+          const capacityRatio = f.sector.availableHeadcount / f.sector.plannedHeadcount;
+          const effectivePace = basePace * Math.min(1.1, Math.max(0.65, capacityRatio));
           const scheduleMinutes = f.scheduleMinutes + SCHEDULE_STEP;
           const workDoneMinutes = Math.min(
             f.task.totalMinutes,
@@ -121,82 +115,5 @@ export function useFactorySimulation() {
     };
   }, []);
 
-  const suggestions = useMemo<SwapSuggestion[]>(() => {
-    const result: SwapSuggestion[] = [];
-
-    factories.forEach((target) => {
-      if (target.status !== "지연") return;
-      let best: SwapSuggestion | null = null;
-
-      JOB_TYPES.forEach((job: JobType) => {
-        const targetWorkerId = target.assignedWorkerIds.find((id) => getWorkerById(id).jobType === job);
-        if (!targetWorkerId) return;
-        const targetWorkerScore = getGradeScore(getWorkerById(targetWorkerId));
-
-        factories.forEach((source) => {
-          if (source.id === target.id || source.status === "지연") return;
-          const sourceWorkerId = source.assignedWorkerIds.find((id) => getWorkerById(id).jobType === job);
-          if (!sourceWorkerId) return;
-          const sourceWorkerScore = getGradeScore(getWorkerById(sourceWorkerId));
-          if (sourceWorkerScore - targetWorkerScore < MIN_GRADE_GAP) return;
-
-          const swappedSourceIds = swapWorker(source.assignedWorkerIds, sourceWorkerId, targetWorkerId);
-          const sourceAfter = { ...source, assignedWorkerIds: swappedSourceIds };
-          const sourcePaceAfter = getEffectivePace(sourceAfter);
-          const sourceExpected = (source.scheduleMinutes / source.task.totalMinutes) * 100;
-          const sourceActualAfter = Math.min(
-            100,
-            ((source.workDoneMinutes + SCHEDULE_STEP * sourcePaceAfter) / source.task.totalMinutes) * 100
-          );
-          if (computeStatus(sourceExpected, sourceActualAfter, source.task.priority) === "지연") return;
-
-          const swappedTargetIds = swapWorker(target.assignedWorkerIds, targetWorkerId, sourceWorkerId);
-          const targetAfter = { ...target, assignedWorkerIds: swappedTargetIds };
-          const remainingWork = target.task.totalMinutes - target.workDoneMinutes;
-          const currentRemaining = remainingWork / Math.max(getEffectivePace(target), 0.15);
-          const newRemaining = remainingWork / Math.max(getEffectivePace(targetAfter), 0.15);
-          const saved = Math.round(currentRemaining - newRemaining);
-
-          if (saved > 0 && (!best || saved > best.estimatedMinutesSaved)) {
-            best = {
-              targetFactoryId: target.id,
-              sourceFactoryId: source.id,
-              jobType: job,
-              targetWorkerId,
-              sourceWorkerId,
-              estimatedMinutesSaved: saved,
-            };
-          }
-        });
-      });
-
-      if (best) result.push(best);
-    });
-
-    return result;
-  }, [factories]);
-
-  const applySuggestion = (s: SwapSuggestion) => {
-    const targetWorker = getWorkerById(s.targetWorkerId);
-    const sourceWorker = getWorkerById(s.sourceWorkerId);
-    const targetName = factories.find((f) => f.id === s.targetFactoryId)?.name ?? "";
-    const sourceName = factories.find((f) => f.id === s.sourceFactoryId)?.name ?? "";
-
-    setFactories((prev) =>
-      prev.map((f) => {
-        if (f.id === s.targetFactoryId) {
-          return { ...f, assignedWorkerIds: swapWorker(f.assignedWorkerIds, s.targetWorkerId, s.sourceWorkerId) };
-        }
-        if (f.id === s.sourceFactoryId) {
-          return { ...f, assignedWorkerIds: swapWorker(f.assignedWorkerIds, s.sourceWorkerId, s.targetWorkerId) };
-        }
-        return f;
-      })
-    );
-    pushLog(
-      `${targetName}의 ${targetWorker.name}님과 ${sourceName}의 ${sourceWorker.name}님을 맞교체했습니다. 약 ${s.estimatedMinutesSaved}분 단축 예상.`
-    );
-  };
-
-  return { factories, suggestions, applySuggestion, paused, setPaused, log, completedCount };
+  return { factories, paused, setPaused, log, completedCount };
 }

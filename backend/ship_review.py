@@ -9,12 +9,12 @@ from PIL import Image
 
 load_dotenv()
 
-GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY")
+GOOGLE_API_KEY = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
 # 주의: 경로에 한글 등 비-ASCII 문자가 들어가면 chromadb의 HNSW 인덱스가
 # 디스크에 제대로 저장되지 않는 버그가 있었음(로컬 PersistentClient 한정).
 # 반드시 영문 경로만 사용할 것.
 DB_PERSIST_PATH = os.environ.get("SHIP_CHROMA_DB_PATH", r"C:\chroma_data\ship_chroma_db")
-MODEL_NAME = os.environ.get("SHIP_REVIEW_MODEL", "gemini-3.6-flash")
+MODEL_NAME = os.environ.get("SHIP_REVIEW_MODEL", "gemini-2.5-flash")
 COLLECTION_NAME = "ship_rules"
 
 _model = None
@@ -28,7 +28,7 @@ def _init():
         return
 
     if not GOOGLE_API_KEY:
-        raise RuntimeError("GOOGLE_API_KEY가 설정되지 않았습니다. backend/.env 파일을 확인하세요.")
+        raise RuntimeError("GEMINI_API_KEY가 설정되지 않았습니다. backend/.env 파일을 확인하세요.")
 
     genai.configure(api_key=GOOGLE_API_KEY)
     _model = genai.GenerativeModel(
@@ -52,7 +52,7 @@ def _parse_ai_json(raw_text: str) -> dict:
 def review_compliance(requirement_texts: List[str], drawings: List[Image.Image], n_results: int = 5) -> dict:
     """
     선주 요구사항 목록과 도면 이미지 목록을 받아 프론트엔드의 ComplianceResult 형태와
-    동일한 구조({status, summary, violatedRules})를 반환한다.
+    동일한 구조({status, summary, violatedRules, optimizationInput})를 반환한다.
     """
     _init()
 
@@ -85,8 +85,28 @@ def review_compliance(requirement_texts: List[str], drawings: List[Image.Image],
       "reason": "구체적으로 어떤 부분이 부적합한지와 수정 방향"
     }}
   ]
+  ,
+  "optimizationInput": {{
+    "workPackages": [
+      {{
+        "workPackageId": "도면에서 식별 가능한 작업 패키지 ID 또는 임시 ID",
+        "sectorId": "예: WELD_A, FIT_A. 판단할 수 없으면 UNKNOWN",
+        "location": "정반/구역 표기. 도면에 없으면 UNKNOWN",
+        "requiredRoleCounts": {{"용접공": 0, "취부공": 0, "사상공": 0, "품질검사": 0}},
+        "estimatedHours": 0,
+        "predecessors": [],
+        "requiredResources": []
+      }}
+    ],
+    "validationNote": "도면·규정 근거와 현장 생산관리자 확인이 필요한 항목을 명시"
+  }}
 }}
 적합할 경우 violatedRules는 빈 배열([])로 응답해.
+
+optimizationInput 작성 지침:
+- 사람의 이름, 사원번호, 숙련도, 등급은 절대 생성하지 마.
+- 작업자는 고정 섹터에 소속된다는 전제에서, 개인 배치가 아닌 역할별 필요 공수와 작업 패키지의 공간·선행 제약만 작성해.
+- 도면이나 규정 근거가 부족한 인원 수·작업시간은 0 또는 UNKNOWN으로 두고 validationNote에 확인 필요 사유를 적어.
 
 [규정 원문]: {retrieved_rule}
 [선주 요구사항]:

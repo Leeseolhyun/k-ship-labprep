@@ -13,8 +13,8 @@ const INITIAL_NOTIFICATIONS: AppNotification[] = [
   {
     id: "n-02",
     type: "success",
-    title: "인력 배정 완료",
-    message: "화물창 블록 취부 및 용접 작업에 대한 인력 배정이 완료되었습니다.",
+    title: "근태 집계 수신",
+    message: "취부 섹터 A의 당일 가용 생산능력 집계가 갱신되었습니다.",
     createdAt: "2026-09-12T07:40:00+09:00",
     read: false,
     link: "/process-balancing",
@@ -22,8 +22,8 @@ const INITIAL_NOTIFICATIONS: AppNotification[] = [
   {
     id: "n-03",
     type: "warning",
-    title: "핵심 인력 업무량 초과",
-    message: "김도윤 취부공의 이번 주 업무량이 90%를 초과했습니다.",
+    title: "섹터 재계획 권장",
+    message: "블록 조립 섹터 C의 가용 인원이 계획보다 적어 작업 대기열 검토가 필요합니다.",
     createdAt: "2026-09-11T17:05:00+09:00",
     read: false,
     link: "/process-balancing",

@@ -1,7 +1,4 @@
-import { WORKERS } from "./workers";
-import { getGradeScore } from "../lib/grading";
-import { JOB_TYPES } from "../types/worker";
-import type { FactoryState, TaskPriority, TaskRecord } from "../types/factory";
+import type { FactoryState, SectorCapacity, TaskPriority, TaskRecord } from "../types/factory";
 
 interface TaskTemplate {
   name: string;
@@ -23,6 +20,45 @@ const SHIP_PROJECTS: { name: string; blocks: string[] }[] = [
 ];
 
 const FACTORY_NAMES = ["1공장", "2공장", "3공장"];
+
+// 실제 연동 시에는 근태 서버가 같은 형식의 '섹터별 익명 집계'를 내려줍니다.
+// 데모에서는 그 응답을 재현할 뿐, 개인 이름·등급·근무 이력은 저장하지 않습니다.
+const SECTOR_CAPACITIES: SectorCapacity[] = [
+  {
+    code: "FIT-A",
+    label: "취부 섹터 A",
+    plannedHeadcount: 12,
+    availableHeadcount: 11,
+    roleCounts: [
+      { role: "취부", planned: 7, available: 6 },
+      { role: "용접", planned: 3, available: 3 },
+      { role: "품질", planned: 2, available: 2 },
+    ],
+  },
+  {
+    code: "WELD-B",
+    label: "용접 섹터 B",
+    plannedHeadcount: 14,
+    availableHeadcount: 14,
+    roleCounts: [
+      { role: "용접", planned: 9, available: 9 },
+      { role: "사상", planned: 3, available: 3 },
+      { role: "품질", planned: 2, available: 2 },
+    ],
+  },
+  {
+    code: "BLOCK-C",
+    label: "블록 조립 섹터 C",
+    plannedHeadcount: 10,
+    availableHeadcount: 8,
+    roleCounts: [
+      { role: "취부", planned: 4, available: 3 },
+      { role: "용접", planned: 3, available: 2 },
+      { role: "사상", planned: 2, available: 2 },
+      { role: "품질", planned: 1, available: 1 },
+    ],
+  },
+];
 
 let workOrderSeq = 1;
 
@@ -53,26 +89,7 @@ export function generateTask(excludeName?: string): TaskRecord {
   };
 }
 
-/**
- * 직업군별로 등급이 높은 순서대로 공장에 스네이크 드래프트 방식(1→2→3, 다음 직업군은 3→2→1, ...)으로
- * 배정한다. 단순 순번 배정 시 한 공장이 전 직업군의 최상위 등급 인원을 독차지하는 문제를 막기 위함이다.
- */
 export function createInitialFactories(): FactoryState[] {
-  const crewByFactory: string[][] = FACTORY_NAMES.map(() => []);
-
-  JOB_TYPES.forEach((job, jobIndex) => {
-    const ranked = WORKERS.filter((w) => w.jobType === job).sort(
-      (a, b) => getGradeScore(b) - getGradeScore(a)
-    );
-    const order =
-      jobIndex % 2 === 0
-        ? FACTORY_NAMES.map((_, i) => i)
-        : FACTORY_NAMES.map((_, i) => FACTORY_NAMES.length - 1 - i);
-    ranked.forEach((worker, i) => {
-      crewByFactory[order[i % order.length]].push(worker.id);
-    });
-  });
-
   return FACTORY_NAMES.map((name, index) => ({
     id: `factory-${index + 1}`,
     name,
@@ -81,7 +98,7 @@ export function createInitialFactories(): FactoryState[] {
     scheduleMinutes: 0,
     basePace: 1,
     status: "정상",
-    assignedWorkerIds: crewByFactory[index],
+    sector: SECTOR_CAPACITIES[index],
     upcomingTasks: [generateTask(), generateTask()],
   }));
 }

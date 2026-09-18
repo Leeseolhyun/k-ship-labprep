@@ -29,7 +29,7 @@ export default function RequirementList({ requirements, onChange }: Props) {
           <textarea
             value={req.text}
             onChange={(e) => updateRequirement(req.id, e.target.value)}
-            placeholder="예: 비상 탈출 통로의 유효 폭은 최소 700mm 이상 확보할 것"
+            placeholder="예: 블록 B-07 용접 공정 · 정반 P-02 · 선행 취부 완료 후 착수 · 납기 17:00"
             rows={2}
             className="flex-1 resize-none rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-800 placeholder:text-gray-400 focus:border-accent-500 focus:outline-none focus:ring-1 focus:ring-accent-500"
           />
@@ -50,7 +50,7 @@ export default function RequirementList({ requirements, onChange }: Props) {
         className="flex items-center gap-1.5 rounded-lg border border-dashed border-gray-300 px-3 py-2 text-sm font-medium text-gray-500 hover:border-accent-400 hover:text-accent-600"
       >
         <Plus size={15} />
-        요구사항 추가
+        작업 조건 추가
       </button>
     </div>
   );

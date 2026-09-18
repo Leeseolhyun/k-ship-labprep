@@ -1,4 +1,4 @@
-import { FileText } from "lucide-react";
+import { Braces, FileText } from "lucide-react";
 import type { ComplianceResult } from "../../types/compliance";
 import StatusBadge from "../ui/StatusBadge";
 
@@ -20,6 +20,16 @@ export default function ComplianceResultView({
           <p className="max-w-md text-sm text-gray-600">{result.summary}</p>
         </div>
       </div>
+
+      {Boolean(result.optimizationInput) && (
+        <div className="overflow-hidden rounded-xl border border-blue-100 bg-slate-950">
+          <div className="flex items-center gap-2 border-b border-white/10 px-4 py-3 text-white">
+            <Braces size={16} className="text-orange-300" />
+            <p className="text-sm font-semibold">최적화 엔진 전달용 JSON 초안</p>
+          </div>
+          <pre className="max-h-96 overflow-auto p-4 text-xs leading-5 text-slate-200">{JSON.stringify(result.optimizationInput, null, 2)}</pre>
+        </div>
+      )}
 
       {result.violatedRules.length > 0 && (
         <div className="space-y-3">

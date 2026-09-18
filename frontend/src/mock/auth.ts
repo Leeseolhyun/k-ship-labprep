@@ -32,7 +32,7 @@ const MOCK_ACCOUNTS: MockAccount[] = [
 ];
 
 export const DEMO_CREDENTIALS: LoginCredentials = {
-  email: MOCK_ACCOUNTS[0].email,
+  employeeId: MOCK_ACCOUNTS[0].employeeId,
   password: MOCK_ACCOUNTS[0].password,
 };
 
@@ -41,11 +41,11 @@ export function fetchLogin(credentials: LoginCredentials): Promise<User> {
     window.setTimeout(() => {
       const account = MOCK_ACCOUNTS.find(
         (a) =>
-          a.email.toLowerCase() === credentials.email.trim().toLowerCase() &&
+          a.employeeId.toLowerCase() === credentials.employeeId.trim().toLowerCase() &&
           a.password === credentials.password
       );
       if (!account) {
-        reject(new Error("이메일 또는 비밀번호가 올바르지 않습니다."));
+        reject(new Error("사원번호 또는 비밀번호가 올바르지 않습니다."));
         return;
       }
       const { password: _password, ...user } = account;

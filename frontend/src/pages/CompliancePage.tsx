@@ -25,7 +25,7 @@ export default function CompliancePage() {
 
   const handleSubmit = async () => {
     if (!hasContent) {
-      setError("선주 요구사항을 하나 이상 입력해 주세요.");
+      setError("작업 조건 또는 검토 기준을 하나 이상 입력해 주세요.");
       return;
     }
     if (images.length === 0) {
@@ -61,9 +61,9 @@ export default function CompliancePage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-bold text-gray-900">규정 적합성 판단</h1>
+        <h1 className="text-xl font-bold text-gray-900">도면 AI 분석 · 최적화 JSON 생성</h1>
         <p className="mt-1 text-sm text-gray-500">
-          선주 요구사항과 도면을 등록하면 관련 규정 적합 여부를 검토합니다.
+          도면과 작업 조건을 등록하면 관련 기준을 검색해 공정 조건 JSON을 만들고, 후속 최적화 입력값으로 전달합니다.
         </p>
       </div>
 
@@ -71,7 +71,7 @@ export default function CompliancePage() {
         <section className="space-y-6 rounded-xl border border-gray-200 bg-white p-5">
           <div>
             <h2 className="mb-3 text-sm font-semibold text-gray-800">
-              선주 요구사항
+              작업 조건 · 검토 기준
             </h2>
             <RequirementList
               requirements={requirements}
@@ -81,7 +81,7 @@ export default function CompliancePage() {
 
           <div>
             <h2 className="mb-3 text-sm font-semibold text-gray-800">
-              도면 이미지
+              도면 이미지 업로드
             </h2>
             <DrawingUploader images={images} onChange={setImages} />
           </div>
@@ -99,7 +99,7 @@ export default function CompliancePage() {
             ) : (
               <Sparkles size={16} />
             )}
-            {loading ? "판단 중..." : "판단 요청"}
+            {loading ? "AI 분석 및 JSON 생성 중..." : "AI 분석 및 최적화 JSON 생성"}
           </button>
         </section>
 
@@ -107,7 +107,7 @@ export default function CompliancePage() {
           {!result && !loading && (
             <div className="flex h-full min-h-64 flex-col items-center justify-center rounded-xl border border-dashed border-gray-300 p-8 text-center">
               <p className="text-sm font-medium text-gray-500">
-                요구사항과 도면을 입력한 뒤 판단 요청을 눌러주세요.
+                작업 조건과 도면을 입력한 뒤 실행 버튼을 눌러주세요.
               </p>
               <p className="mt-1 text-xs text-gray-400">
                 결과가 이 영역에 표시됩니다.
@@ -117,7 +117,7 @@ export default function CompliancePage() {
           {loading && (
             <div className="flex h-full min-h-64 flex-col items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white p-8 text-center">
               <LoaderCircle size={22} className="animate-spin text-accent-500" />
-              <p className="text-sm text-gray-500">규정 검토 중입니다...</p>
+              <p className="text-sm text-gray-500">관련 규정을 검색하고 공정 조건을 구조화하고 있습니다...</p>
             </div>
           )}
           {result && !loading && <ComplianceResultView result={result} />}

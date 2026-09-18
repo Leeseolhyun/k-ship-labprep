@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useLocation } from "react-router-dom";
-import { FileCheck2, LayoutDashboard, Ship, Users } from "lucide-react";
+import { FileCheck2, LayoutDashboard, Ship, Waypoints } from "lucide-react";
 import LiveClock from "./LiveClock";
 import NotificationBell from "./NotificationBell";
 import ProfileMenu from "./ProfileMenu";
@@ -7,8 +7,8 @@ import TopBanner from "./TopBanner";
 
 const NAV_ITEMS = [
   { to: "/", label: "대시보드", icon: LayoutDashboard, end: true },
-  { to: "/compliance", label: "규정 적합성 판단", icon: FileCheck2, end: false },
-  { to: "/process-balancing", label: "공정 밸런싱", icon: Users, end: false },
+  { to: "/compliance", label: "도면·규정 분석", icon: FileCheck2, end: false },
+  { to: "/process-balancing", label: "섹터 운영계획", icon: Waypoints, end: false },
 ];
 
 function usePageTitle(): string {
@@ -17,7 +17,7 @@ function usePageTitle(): string {
   const match = NAV_ITEMS.find((item) =>
     item.end ? pathname === item.to : pathname.startsWith(item.to)
   );
-  return match?.label ?? "조선소 업무지원";
+  return match?.label ?? "SHIPFLOW CONTROL";
 }
 
 export default function AppLayout() {
@@ -33,7 +33,7 @@ export default function AppLayout() {
           </span>
           <div>
             <p className="text-sm font-bold leading-tight text-gray-900">
-              조선소 업무지원
+              SHIPFLOW CONTROL
             </p>
             <p className="text-xs text-gray-400">SHIPYARD OPS</p>
           </div>

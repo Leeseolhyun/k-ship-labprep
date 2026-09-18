@@ -1,32 +1,24 @@
-import { useState } from "react";
+import { CalendarCheck2, ShieldCheck, UsersRound } from "lucide-react";
 import FactoryBoard from "../components/process-balancing/FactoryBoard";
 import SummaryDashboard from "../components/process-balancing/SummaryDashboard";
-import WorkerCard from "../components/process-balancing/WorkerCard";
-import WorkerDetailPanel from "../components/process-balancing/WorkerDetailPanel";
 import { useFactoryContext } from "../context/FactoryContext";
-import { WORKERS } from "../mock/workers";
-import type { Worker } from "../types/worker";
 
 export default function ProcessBalancingPage() {
-  const { factories, suggestions, applySuggestion, paused, setPaused, log, completedCount } =
+  const { factories, paused, setPaused, log, completedCount } =
     useFactoryContext();
-  const [selectedWorker, setSelectedWorker] = useState<Worker | null>(null);
-
-  const getWorker = (id: string) => WORKERS.find((w) => w.id === id)!;
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-bold text-gray-900">공정 밸런싱</h1>
+        <p className="text-xs font-bold tracking-[0.18em] text-accent-600">SECTOR CAPACITY CONTROL</p>
+        <h1 className="mt-1 text-xl font-bold text-gray-900">섹터 운영계획</h1>
         <p className="mt-1 text-sm text-gray-500">
-          공장별 실시간 작업 진행 상황과 배정 인원을 확인합니다.
+          고정 섹터별 당일 가용 생산능력과 작업 대기열을 확인합니다.
         </p>
       </div>
 
       <FactoryBoard
         factories={factories}
-        suggestions={suggestions}
-        onApply={applySuggestion}
         paused={paused}
         onTogglePause={() => setPaused((p) => !p)}
         log={log}
@@ -34,34 +26,35 @@ export default function ProcessBalancingPage() {
 
       <SummaryDashboard factories={factories} completedCount={completedCount} />
 
-      <div className="space-y-6">
+      <section>
+        <div className="mb-3 flex items-center gap-2">
+          <h2 className="text-sm font-semibold text-gray-800">근태 연동 집계</h2>
+          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500">개인정보 비표시</span>
+        </div>
+        <div className="grid gap-4 lg:grid-cols-3">
         {factories.map((factory) => (
-          <section key={factory.id}>
-            <div className="mb-3 flex items-baseline gap-2">
-              <h2 className="text-sm font-semibold text-gray-800">{factory.name} 배정 인원</h2>
-              <span className="text-xs font-normal text-gray-400">
-                {factory.task.name} · {factory.assignedWorkerIds.length}명
-              </span>
+          <article key={factory.id} className="rounded-xl border border-gray-200 bg-white p-4">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-sm font-bold text-slate-900">{factory.sector.label}</p>
+                <p className="mt-1 text-xs text-slate-400">{factory.sector.code} · {factory.task.block}</p>
+              </div>
+              <span className="rounded-md bg-emerald-50 px-2 py-1 text-[10px] font-bold text-emerald-700">근태 집계 수신</span>
             </div>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-              {factory.assignedWorkerIds.map((id) => (
-                <WorkerCard
-                  key={id}
-                  worker={getWorker(id)}
-                  onOpenDetail={setSelectedWorker}
-                />
-              ))}
+            <div className="mt-4 grid grid-cols-3 gap-2 border-y border-slate-100 py-3 text-center">
+              <Metric icon={UsersRound} label="가용" value={`${factory.sector.availableHeadcount}명`} />
+              <Metric icon={CalendarCheck2} label="계획" value={`${factory.sector.plannedHeadcount}명`} />
+              <Metric icon={ShieldCheck} label="처리 기준" value="익명" />
             </div>
-          </section>
+            <p className="mt-3 text-xs leading-5 text-slate-500">실제 연동 시 사원증 태그값은 사내 근태 서버에서 섹터별 합계로 변환되어 전달됩니다.</p>
+          </article>
         ))}
-      </div>
-
-      {selectedWorker && (
-        <WorkerDetailPanel
-          worker={selectedWorker}
-          onClose={() => setSelectedWorker(null)}
-        />
-      )}
+        </div>
+      </section>
     </div>
   );
+}
+
+function Metric({ icon: Icon, label, value }: { icon: typeof UsersRound; label: string; value: string }) {
+  return <div><Icon size={14} className="mx-auto text-slate-400" /><p className="mt-1 text-[10px] text-slate-400">{label}</p><p className="mt-0.5 text-xs font-bold text-slate-700">{value}</p></div>;
 }

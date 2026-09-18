@@ -1,5 +1,3 @@
-import { getEffectivePace, getRemainingMinutes, getWorkerById } from "../../lib/factorySim";
-import { GRADE_COLOR, getGrade } from "../../lib/grading";
 import type { FactoryState } from "../../types/factory";
 
 const STATUS_STYLE: Record<FactoryState["status"], string> = {
@@ -20,8 +18,8 @@ export default function FactoryCard({ factory }: { factory: FactoryState }) {
   const { task } = factory;
   const actualProgress = Math.min(100, (factory.workDoneMinutes / task.totalMinutes) * 100);
   const expectedProgress = Math.min(100, (factory.scheduleMinutes / task.totalMinutes) * 100);
-  const remainingMinutes = getRemainingMinutes(factory);
-  const effectivePace = getEffectivePace(factory);
+  const remainingMinutes = Math.max(0, Math.round(task.totalMinutes - factory.workDoneMinutes));
+  const capacityRate = Math.round((factory.sector.availableHeadcount / factory.sector.plannedHeadcount) * 100);
   const nextTask = factory.upcomingTasks[0];
 
   return (
@@ -75,28 +73,24 @@ export default function FactoryCard({ factory }: { factory: FactoryState }) {
         <span className="text-gray-400">
           {factory.status === "완료" ? "완료됨" : `약 ${remainingMinutes}분 후 완료 예정`}
         </span>
-        <span className="text-gray-400">배속 {effectivePace.toFixed(2)}x</span>
+        <span className={capacityRate < 100 ? "font-medium text-amber-600" : "text-emerald-600"}>
+          가용 {factory.sector.availableHeadcount}/{factory.sector.plannedHeadcount}명
+        </span>
       </div>
 
-      <div className="mt-3 flex flex-wrap gap-1.5">
-        {factory.assignedWorkerIds.map((id) => {
-          const worker = getWorkerById(id);
-          const grade = getGrade(worker);
-          return (
-            <span
-              key={id}
-              title={`${worker.name} · ${worker.jobType} · ${grade}등급`}
-              className="flex items-center gap-1 rounded-full bg-gray-50 py-1 pl-1 pr-2 text-[11px] text-gray-600"
-            >
-              <span
-                className={`flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold ${GRADE_COLOR[grade]}`}
-              >
-                {grade}
-              </span>
-              {worker.name}
+      <div className="mt-3 rounded-lg bg-slate-50 p-2.5">
+        <div className="flex items-center justify-between">
+          <p className="text-[11px] font-semibold text-slate-600">{factory.sector.label}</p>
+          <span className={`text-[11px] font-bold ${capacityRate < 100 ? "text-amber-600" : "text-emerald-600"}`}>{capacityRate}% 확보</span>
+        </div>
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {factory.sector.roleCounts.map((role) => (
+            <span key={role.role} className="rounded-md border border-slate-200 bg-white px-1.5 py-1 text-[10px] text-slate-600">
+              {role.role} <b className={role.available < role.planned ? "text-amber-600" : "text-slate-800"}>{role.available}/{role.planned}</b>
             </span>
-          );
-        })}
+          ))}
+        </div>
+        <p className="mt-2 text-[10px] text-slate-400">근태 연동값은 개인 정보 없이 섹터 단위로 집계됩니다.</p>
       </div>
 
       {nextTask && (

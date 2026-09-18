@@ -30,5 +30,6 @@ export interface ComplianceResult {
   summary: string;
   checkedRequirements: string[];
   violatedRules: ViolatedRule[];
+  optimizationInput?: unknown;
   checkedAt: string;
 }
