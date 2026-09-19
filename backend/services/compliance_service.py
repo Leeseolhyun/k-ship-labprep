@@ -2,64 +2,20 @@ import json
 import os
 from typing import List
 
-from dotenv import load_dotenv
-import chromadb
-import google.generativeai as genai
 from PIL import Image
 
-load_dotenv()
+from gemini_client import generate_json
+from rag_db import retrieve_context
 
-GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY")
-# 주의: 경로에 한글 등 비-ASCII 문자가 들어가면 chromadb의 HNSW 인덱스가
-# 디스크에 제대로 저장되지 않는 버그가 있었음(로컬 PersistentClient 한정).
-# 반드시 영문 경로만 사용할 것.
-DB_PERSIST_PATH = os.environ.get("SHIP_CHROMA_DB_PATH", r"C:\chroma_data\ship_chroma_db")
-MODEL_NAME = os.environ.get("SHIP_REVIEW_MODEL", "gemini-3.6-flash")
-COLLECTION_NAME = "ship_rules"
-
-_model = None
-_collection = None
+CHAT_MODEL = os.environ.get("SHIP_REVIEW_MODEL", "gemini-3.6-flash")
+API_KEY = os.environ["COMPLIANCE_API_KEY"]
 
 
-def _init():
-    """API/DB 연결을 최초 호출 시 한 번만 초기화한다."""
-    global _model, _collection
-    if _model is not None and _collection is not None:
-        return
-
-    if not GOOGLE_API_KEY:
-        raise RuntimeError("GOOGLE_API_KEY가 설정되지 않았습니다. backend/.env 파일을 확인하세요.")
-
-    genai.configure(api_key=GOOGLE_API_KEY)
-    _model = genai.GenerativeModel(
-        MODEL_NAME,
-        generation_config={"response_mime_type": "application/json"},
-    )
-
-    chroma_client = chromadb.PersistentClient(path=DB_PERSIST_PATH)
-    _collection = chroma_client.get_collection(name=COLLECTION_NAME)
-
-
-def _parse_ai_json(raw_text: str) -> dict:
-    cleaned = raw_text.strip()
-    if cleaned.startswith("```"):
-        cleaned = cleaned.strip("`")
-        if cleaned.lower().startswith("json"):
-            cleaned = cleaned[4:]
-    return json.loads(cleaned)
-
-
-def review_compliance(requirement_texts: List[str], drawings: List[Image.Image], n_results: int = 5) -> dict:
-    """
-    선주 요구사항 목록과 도면 이미지 목록을 받아 프론트엔드의 ComplianceResult 형태와
-    동일한 구조({status, summary, violatedRules})를 반환한다.
-    """
-    _init()
-
+def check_compliance(requirement_texts: List[str], images: List[Image.Image]) -> dict:
+    """선주 요구사항 목록과 도면을 규정 원문에 비추어 적합/부적합만 판단한다.
+    (작업 종류·인원배치는 다루지 않음)"""
     combined_requirement = "\n".join(requirement_texts)
-    results = _collection.query(query_texts=[combined_requirement], n_results=n_results)
-    retrieved_rule = "\n".join(results["documents"][0])
-
+    retrieved_rule = retrieve_context(combined_requirement, n_results=5)
     requirement_list_text = "\n".join(f"- {t}" for t in requirement_texts)
 
     prompt = f"""
@@ -93,5 +49,5 @@ def review_compliance(requirement_texts: List[str], drawings: List[Image.Image],
 {requirement_list_text}
 """
 
-    response = _model.generate_content([prompt, *drawings])
-    return _parse_ai_json(response.text)
+    raw_text = generate_json(CHAT_MODEL, prompt, images, API_KEY)
+    return json.loads(raw_text)
