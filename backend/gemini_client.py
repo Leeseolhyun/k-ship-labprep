@@ -21,17 +21,22 @@ def _get_client(api_key: str) -> genai.Client:
     return _clients[api_key]
 
 
-def generate_json(model: str, prompt: str, images: List[Image.Image], api_key: str) -> str:
+def generate_json(model: str, prompt: str, images: List[Image.Image], api_key: str, response_schema=None) -> str:
     """지정한 API 키로 프롬프트+도면 이미지(들)를 Gemini에 보내 JSON 텍스트 응답을 받는다.
+    response_schema(Pydantic 모델)를 넘기면 그 구조를 강제해서 필드 누락을 막는다.
     503(서버 과부하)은 보통 일시적이라 자동으로 몇 번 재시도한다."""
     client = _get_client(api_key)
+    config = {"response_mime_type": "application/json"}
+    if response_schema is not None:
+        config["response_schema"] = response_schema
+
     last_error = None
     for attempt in range(1, MAX_RETRIES + 1):
         try:
             response = client.models.generate_content(
                 model=model,
                 contents=[prompt, *images],
-                config={"response_mime_type": "application/json"},
+                config=config,
             )
             return response.text
         except ServerError as e:

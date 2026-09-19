@@ -1,3 +1,4 @@
+import asyncio
 import io
 import json
 import uuid
@@ -32,6 +33,52 @@ def _load_images(drawings: List[UploadFile]) -> List[Image.Image]:
     return images
 
 
+def _build_optimization_input(raw):
+    """AI가 만든 실행계획(optimizationInput)을 프론트엔드가 기대하는 형태로 검증·정리한다.
+    작업 패키지가 하나도 없으면 프론트가 버튼을 비활성화할 수 있도록 None을 반환한다."""
+    if not isinstance(raw, dict):
+        return None
+
+    work_packages = []
+    for i, wp in enumerate(raw.get("workPackages", []) or []):
+        if not isinstance(wp, dict):
+            continue
+        work_package_id = str(wp.get("workPackageId") or f"WP-{i + 1}")
+        raw_role_counts = wp.get("requiredRoleCounts") or []
+        if isinstance(raw_role_counts, dict):
+            # 혹시 모델이 예전 형식({역할: 숫자})으로 응답하더라도 그대로 처리한다.
+            role_count_pairs = raw_role_counts.items()
+        else:
+            role_count_pairs = (
+                (rc.get("role"), rc.get("count"))
+                for rc in raw_role_counts
+                if isinstance(rc, dict)
+            )
+        required_role_counts = {
+            str(role): count
+            for role, count in role_count_pairs
+            if role and isinstance(count, (int, float)) and count > 0
+        }
+        work_packages.append({
+            "workPackageId": work_package_id,
+            "workPackageName": wp.get("workPackageName") or work_package_id,
+            "sectorId": str(wp.get("sectorId") or ""),
+            "location": str(wp.get("location") or ""),
+            "requiredRoleCounts": required_role_counts,
+            "estimatedHours": wp.get("estimatedHours") if isinstance(wp.get("estimatedHours"), (int, float)) else 3,
+            "predecessors": [str(p) for p in (wp.get("predecessors") or [])],
+            "requiredResources": [str(r) for r in (wp.get("requiredResources") or [])],
+        })
+
+    if not work_packages:
+        return None
+
+    return {
+        "validationNote": raw.get("validationNote") or "",
+        "workPackages": work_packages,
+    }
+
+
 @app.get("/health")
 def health():
     return {"status": "ok"}
@@ -52,7 +99,7 @@ async def compliance_review(
     images = _load_images(drawings)
 
     try:
-        ai_result = check_compliance(requirement_texts, images)
+        ai_result = await asyncio.to_thread(check_compliance, requirement_texts, images)
     except json.JSONDecodeError:
         raise HTTPException(status_code=502, detail="AI 응답을 해석할 수 없습니다. 다시 시도해 주세요.")
     except Exception as e:
@@ -67,12 +114,15 @@ async def compliance_review(
         for i, rule in enumerate(ai_result.get("violatedRules", []))
     ]
 
+    optimization_input = _build_optimization_input(ai_result.get("optimizationInput"))
+
     return {
         "id": f"CR-{uuid.uuid4().hex[:8]}",
         "status": ai_result.get("status", "부적합"),
         "summary": ai_result.get("summary", ""),
         "checkedRequirements": requirement_texts,
         "violatedRules": violated_rules,
+        "optimizationInput": optimization_input,
         "checkedAt": datetime.now(timezone.utc).isoformat(),
     }
 
@@ -88,7 +138,7 @@ async def personnel_estimate(
     images = _load_images(drawings)
 
     try:
-        ai_result = analyze_workforce(images)
+        ai_result = await asyncio.to_thread(analyze_workforce, images)
     except json.JSONDecodeError:
         raise HTTPException(status_code=502, detail="AI 응답을 해석할 수 없습니다. 다시 시도해 주세요.")
     except Exception as e:
