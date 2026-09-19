@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { createInitialFactories, generateTask } from "../mock/factories";
+import { createFactoriesFromOptimizationInput } from "../mock/factories";
 import type { FactoryState, TaskPriority } from "../types/factory";
+import type { OptimizationInput } from "../types/compliance";
 
 const TICK_MS = 1200;
 const SCHEDULE_STEP = 4;
@@ -23,7 +24,9 @@ function computeStatus(expected: number, actual: number, priority: TaskPriority)
 }
 
 export function useFactorySimulation() {
-  const [factories, setFactories] = useState<FactoryState[]>(() => createInitialFactories());
+  const [factories, setFactories] = useState<FactoryState[]>([]);
+  const [operationStarted, setOperationStarted] = useState(false);
+  const [activePlanNote, setActivePlanNote] = useState("");
   const [paused, setPaused] = useState(false);
   const [log, setLog] = useState<FactoryLogEntry[]>([]);
   const [completedCount, setCompletedCount] = useState(0);
@@ -35,6 +38,19 @@ export function useFactorySimulation() {
     setLog((prev) => [{ id: `log-${Date.now()}-${Math.random()}`, message, at: Date.now() }, ...prev].slice(0, 20));
   };
 
+  const startOperations = (input: OptimizationInput) => {
+    const plannedFactories = createFactoriesFromOptimizationInput(input);
+    if (plannedFactories.length === 0) {
+      throw new Error("최적화 JSON에 시작할 작업 패키지가 없습니다.");
+    }
+    setFactories(plannedFactories);
+    setCompletedCount(0);
+    setPaused(false);
+    setOperationStarted(true);
+    setActivePlanNote(input.validationNote);
+    pushLog(`도면 기반 실행계획을 반영했습니다. ${plannedFactories.length}개 공장에서 작업을 시작합니다.`);
+  };
+
   const scheduleReset = (factoryId: string) => {
     if (resetTimers.current[factoryId]) return;
     resetTimers.current[factoryId] = window.setTimeout(() => {
@@ -42,6 +58,11 @@ export function useFactorySimulation() {
       setFactories((prev) =>
         prev.map((f) => {
           if (f.id !== factoryId || f.status !== "완료") return f;
+          // 도면 JSON의 대기열이 끝났다면 임의 작업을 만들지 않고 완료 상태로 남긴다.
+          if (f.upcomingTasks.length === 0) {
+            pushLog(`${f.name}의 도면 기반 작업 "${f.task.name}"이(가) 완료되었습니다.`);
+            return f;
+          }
           const variance = Math.round(f.scheduleMinutes - f.task.totalMinutes);
           const outcome =
             variance > 8
@@ -49,9 +70,8 @@ export function useFactorySimulation() {
               : variance < -8
                 ? `조기 완료 (계획 대비 ${Math.abs(variance)}분 단축)`
                 : "정시 완료";
-          const queue = f.upcomingTasks.length > 0 ? f.upcomingTasks : [generateTask(f.task.name)];
+          const queue = f.upcomingTasks;
           const [nextTask, ...restQueue] = queue;
-          const refilledQueue = [...restQueue, generateTask(nextTask.name)];
           pushLog(
             `${f.name}이(가) "${f.task.name}" 작업을 ${outcome}했습니다. 다음 작업 "${nextTask.name}" (${nextTask.shipProject} · ${nextTask.block}${nextTask.priority === "긴급" ? " · 긴급" : ""})을 시작합니다.`
           );
@@ -62,7 +82,7 @@ export function useFactorySimulation() {
             scheduleMinutes: 0,
             basePace: 0.9 + Math.random() * 0.3,
             status: "정상",
-            upcomingTasks: refilledQueue,
+            upcomingTasks: restQueue,
           };
         })
       );
@@ -71,7 +91,7 @@ export function useFactorySimulation() {
 
   useEffect(() => {
     const timer = window.setInterval(() => {
-      if (pausedRef.current) return;
+      if (!operationStarted || pausedRef.current) return;
       const newlyFinished: string[] = [];
       setFactories((prev) =>
         prev.map((f) => {
@@ -113,7 +133,7 @@ export function useFactorySimulation() {
       Object.values(resetTimers.current).forEach((id) => window.clearTimeout(id));
       resetTimers.current = {};
     };
-  }, []);
+  }, [operationStarted]);
 
-  return { factories, paused, setPaused, log, completedCount };
+  return { factories, paused, setPaused, log, completedCount, operationStarted, activePlanNote, startOperations };
 }

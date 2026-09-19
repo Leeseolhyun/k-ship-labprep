@@ -1,4 +1,5 @@
 import type { FactoryState, SectorCapacity, TaskPriority, TaskRecord } from "../types/factory";
+import type { OptimizationInput, OptimizationWorkPackage } from "../types/compliance";
 
 interface TaskTemplate {
   name: string;
@@ -89,16 +90,54 @@ export function generateTask(excludeName?: string): TaskRecord {
   };
 }
 
-export function createInitialFactories(): FactoryState[] {
-  return FACTORY_NAMES.map((name, index) => ({
-    id: `factory-${index + 1}`,
-    name,
-    task: generateTask(),
-    workDoneMinutes: 0,
-    scheduleMinutes: 0,
-    basePace: 1,
-    status: "정상",
-    sector: SECTOR_CAPACITIES[index],
-    upcomingTasks: [generateTask(), generateTask()],
-  }));
+function resolveSector(workPackage: OptimizationWorkPackage, index: number): SectorCapacity {
+  const requested = workPackage.sectorId.toUpperCase();
+  return SECTOR_CAPACITIES.find((sector) =>
+    requested.includes(sector.code.split("-")[0]) || sector.code.includes(requested)
+  ) ?? SECTOR_CAPACITIES[index % SECTOR_CAPACITIES.length];
+}
+
+/**
+ * AI JSON을 화면 실행계획으로 변환한다. 여기서도 개인이 아닌 고정 섹터의 역할별 필요 인원만 사용한다.
+ */
+export function createFactoriesFromOptimizationInput(input: OptimizationInput): FactoryState[] {
+  const factoryCount = Math.min(FACTORY_NAMES.length, input.workPackages.length);
+  const packagesByFactory = Array.from({ length: factoryCount }, () => [] as OptimizationWorkPackage[]);
+  input.workPackages.forEach((workPackage, index) => packagesByFactory[index % factoryCount].push(workPackage));
+
+  return packagesByFactory.map((packages, index) => {
+    const [workPackage, ...upcomingPackages] = packages;
+    const sector = resolveSector(workPackage, index);
+    const roleCounts = Object.entries(workPackage.requiredRoleCounts)
+      .filter(([, count]) => Number.isFinite(count) && count > 0)
+      .map(([role, count]) => ({ role, planned: count, available: count }));
+    const plannedHeadcount = roleCounts.reduce((sum, role) => sum + role.planned, 0) || sector.plannedHeadcount;
+    const plannedSector: SectorCapacity = {
+      ...sector,
+      plannedHeadcount,
+      availableHeadcount: Math.min(sector.availableHeadcount, plannedHeadcount),
+      roleCounts: roleCounts.length > 0 ? roleCounts : sector.roleCounts,
+    };
+    const toTask = (source: OptimizationWorkPackage): TaskRecord => ({
+      id: source.workPackageId || nextWorkOrderId(),
+      name: source.workPackageName || source.workPackageId || "도면 기반 작업",
+      shipProject: "도면 분석 실행계획",
+      block: source.location || "현장 확인 필요",
+      priority: "일반",
+      totalMinutes: Math.max(30, Math.round((source.estimatedHours || 3) * 60)),
+    });
+    const task = toTask(workPackage);
+    return {
+      id: `factory-${index + 1}`,
+      name: FACTORY_NAMES[index],
+      task,
+      workDoneMinutes: 0,
+      scheduleMinutes: 0,
+      basePace: 1,
+      status: "정상",
+      sector: plannedSector,
+      // 작업 패키지가 3개보다 많으면 고정 섹터의 대기열로 이어지며, 새 랜덤 작업은 만들지 않는다.
+      upcomingTasks: upcomingPackages.map(toTask),
+    };
+  });
 }

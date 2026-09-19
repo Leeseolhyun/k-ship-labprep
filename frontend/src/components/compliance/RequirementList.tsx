@@ -50,7 +50,7 @@ export default function RequirementList({ requirements, onChange }: Props) {
         className="flex items-center gap-1.5 rounded-lg border border-dashed border-gray-300 px-3 py-2 text-sm font-medium text-gray-500 hover:border-accent-400 hover:text-accent-600"
       >
         <Plus size={15} />
-        작업 조건 추가
+        요청사항 추가
       </button>
     </div>
   );

@@ -90,6 +90,7 @@ def review_compliance(requirement_texts: List[str], drawings: List[Image.Image],
     "workPackages": [
       {{
         "workPackageId": "도면에서 식별 가능한 작업 패키지 ID 또는 임시 ID",
+        "workPackageName": "도면에서 식별한 실제 작업명. 판단할 수 없으면 도면 기반 작업",
         "sectorId": "예: WELD_A, FIT_A. 판단할 수 없으면 UNKNOWN",
         "location": "정반/구역 표기. 도면에 없으면 UNKNOWN",
         "requiredRoleCounts": {{"용접공": 0, "취부공": 0, "사상공": 0, "품질검사": 0}},

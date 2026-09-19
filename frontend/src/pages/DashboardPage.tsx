@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import FactoryCard from "../components/process-balancing/FactoryCard";
 import SummaryDashboard from "../components/process-balancing/SummaryDashboard";
+import Co2EnvironmentCard from "../components/dashboard/Co2EnvironmentCard";
 import { useAuth } from "../context/AuthContext";
 import { useFactoryContext } from "../context/FactoryContext";
 import { useNotifications } from "../context/NotificationContext";
@@ -32,7 +33,7 @@ const COLOR_BY_TYPE: Record<NotificationType, string> = {
 export default function DashboardPage() {
   const { user } = useAuth();
   const { notifications } = useNotifications();
-  const { factories, completedCount } = useFactoryContext();
+  const { factories, completedCount, operationStarted } = useFactoryContext();
 
   const today = new Date().toLocaleDateString("ko-KR", {
     year: "numeric",
@@ -47,18 +48,17 @@ export default function DashboardPage() {
         <img src="/images/shipyard-hero.png" alt="조선소를 지나 항해하는 대형 선박" className="absolute inset-0 -z-20 h-full w-full object-cover object-center opacity-90" />
         <div className="absolute inset-0 -z-10 bg-gradient-to-r from-slate-950 via-slate-950/80 to-slate-900/10" />
         <div className="relative flex max-w-2xl flex-col justify-end">
-          <p className="text-xs font-bold tracking-[0.24em] text-orange-300">SHIPYARD OPERATIONS CONTROL</p>
+          <p className="text-xs font-bold tracking-[0.24em] text-sky-200">SHIPYARD OPERATIONS</p>
           <h1 className="mt-3 text-4xl font-black leading-[1.12] sm:text-5xl">오늘의 생산능력을 읽고,<br />납기 리스크를 먼저 본다.</h1>
-          <p className="mt-5 max-w-xl text-sm leading-6 text-slate-100 sm:text-base">도면·작업 정보와 섹터별 가용 생산능력을 연결해, 개인 배정 없이 작업 순서와 병목 영향을 재계획합니다.</p>
+          <p className="mt-5 max-w-xl text-sm leading-6 text-slate-100 sm:text-base">도면을 바탕으로 섹터별 작업과 예상 시간을 시작합니다.</p>
           <div className="mt-7 flex flex-wrap gap-3">
             <Link to="/compliance" className="inline-flex items-center gap-2 rounded-lg bg-orange-500 px-4 py-3 text-sm font-bold text-white shadow-lg shadow-orange-950/30 transition hover:bg-orange-400">도면 분석 시작 <ChevronRight size={16} /></Link>
             <Link to="/process-balancing" className="inline-flex items-center gap-2 rounded-lg border border-white/35 bg-white/10 px-4 py-3 text-sm font-bold text-white backdrop-blur transition hover:bg-white/20">오늘의 섹터 현황 <ChevronRight size={16} /></Link>
           </div>
         </div>
         <div className="absolute bottom-6 right-6 hidden max-w-56 rounded-xl border border-white/15 bg-slate-950/50 p-4 backdrop-blur-md sm:block">
-          <p className="text-[10px] font-bold tracking-[0.16em] text-slate-300">OPERATION SNAPSHOT</p>
-          <p className="mt-2 text-2xl font-black">08:30</p>
-          <p className="mt-1 text-xs leading-5 text-slate-300">오늘 근태 집계 기준<br />3개 고정 섹터 운영 중</p>
+          <p className="text-[10px] font-bold tracking-[0.16em] text-sky-200">작업 상태</p>
+          <p className="mt-2 text-lg font-black">{operationStarted ? "작업 진행 중" : "작업 시작 전"}</p>
         </div>
       </section>
       <div>
@@ -71,7 +71,18 @@ export default function DashboardPage() {
         </p>
       </div>
 
+      {!operationStarted ? (
+        <section className="rounded-2xl border border-white/80 bg-white/70 p-6 shadow-sm backdrop-blur sm:p-8">
+          <div className="max-w-2xl">
+            <h2 className="text-2xl font-black text-slate-900">오늘의 작업을 시작하세요.</h2>
+            <p className="mt-2 text-sm text-slate-500">도면을 등록하면 공장별 작업과 예상 시간을 만들 수 있습니다.</p>
+            <Link to="/compliance" className="mt-5 inline-flex items-center gap-2 rounded-lg bg-accent-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-accent-700">도면 등록 <ChevronRight size={16} /></Link>
+          </div>
+        </section>
+      ) : <>
       <SummaryDashboard factories={factories} completedCount={completedCount} />
+
+      <Co2EnvironmentCard />
 
       <section>
         <div className="mb-3 flex items-center justify-between">
@@ -99,15 +110,7 @@ export default function DashboardPage() {
           ))}
         </div>
       </section>
-
-      <section className="relative overflow-hidden rounded-2xl border border-slate-800 bg-slate-950 p-6 text-white">
-        <img src="/images/shipyard-work.png" alt="조선소 블록 제작 작업" className="absolute inset-0 h-full w-full object-cover opacity-30" />
-        <div className="relative max-w-xl">
-          <p className="text-xs font-bold tracking-[0.18em] text-orange-300">FIELD TO PLAN</p>
-          <h2 className="mt-2 text-xl font-bold">도면의 작업조건을 구조화해<br />섹터별 실행계획으로 연결합니다.</h2>
-          <p className="mt-3 text-sm leading-6 text-slate-200">도면 분석 결과는 역할별 필요 공수, 선행 관계, 정반·크레인 제약을 담은 JSON으로 정리되어 최적화 로직에 전달됩니다.</p>
-        </div>
-      </section>
+      </>}
 
       <section className="grid gap-4 lg:grid-cols-2">
         <Link
@@ -120,7 +123,7 @@ export default function DashboardPage() {
             </span>
             <div>
               <p className="text-sm font-semibold text-gray-900">도면·규정 분석</p>
-              <p className="text-xs text-gray-400">작업 조건을 최적화용 JSON으로 구조화합니다</p>
+              <p className="text-xs text-gray-400">도면 요청사항을 실행계획 JSON으로 만듭니다</p>
             </div>
           </div>
           <ChevronRight size={18} className="text-gray-300 group-hover:text-accent-500" />

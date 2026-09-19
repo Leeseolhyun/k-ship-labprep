@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useLocation } from "react-router-dom";
-import { FileCheck2, LayoutDashboard, Ship, Waypoints } from "lucide-react";
+import { FileCheck2, LayoutDashboard, ShieldAlert, Ship, Waypoints } from "lucide-react";
 import LiveClock from "./LiveClock";
 import NotificationBell from "./NotificationBell";
 import ProfileMenu from "./ProfileMenu";
@@ -9,6 +9,7 @@ const NAV_ITEMS = [
   { to: "/", label: "대시보드", icon: LayoutDashboard, end: true },
   { to: "/compliance", label: "도면·규정 분석", icon: FileCheck2, end: false },
   { to: "/process-balancing", label: "섹터 운영계획", icon: Waypoints, end: false },
+  { to: "/safety-monitor", label: "O₂·CO₂ 안전 모니터", icon: ShieldAlert, end: false },
 ];
 
 function usePageTitle(): string {
@@ -24,9 +25,9 @@ export default function AppLayout() {
   const pageTitle = usePageTitle();
 
   return (
-    <div className="min-h-screen bg-gray-50 lg:grid lg:grid-cols-[240px_1fr]">
+    <div className="min-h-screen lg:grid lg:grid-cols-[240px_1fr]">
       <TopBanner />
-      <aside className="hidden lg:flex flex-col border-r border-gray-200 bg-white px-4 py-6">
+      <aside className="hidden lg:flex flex-col border-r border-white/70 bg-white/65 px-4 py-6 backdrop-blur-xl">
         <div className="flex items-center gap-2 px-2 pb-8">
           <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent-600 text-white">
             <Ship size={18} />
@@ -64,7 +65,7 @@ export default function AppLayout() {
       </aside>
 
       <div className="flex min-h-screen flex-col">
-        <header className="sticky top-0 z-20 flex items-center justify-between border-b border-gray-200 bg-white/95 px-4 py-3 backdrop-blur sm:px-6 lg:px-8">
+        <header className="sticky top-0 z-20 flex items-center justify-between border-b border-white/70 bg-white/65 px-4 py-3 backdrop-blur-xl sm:px-6 lg:px-8">
           <div className="flex items-center gap-2">
             <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent-600 text-white lg:hidden">
               <Ship size={16} />
@@ -82,7 +83,7 @@ export default function AppLayout() {
           </div>
         </header>
 
-        <nav className="flex gap-1 border-b border-gray-200 bg-white px-3 py-2 lg:hidden">
+        <nav className="flex gap-1 border-b border-white/70 bg-white/65 px-3 py-2 backdrop-blur-xl lg:hidden">
           {NAV_ITEMS.map((item) => {
             const Icon = item.icon;
             return (

@@ -20,7 +20,11 @@ body,
 }
 
 body {
-  background-color: #f5f6f8;
+  background:
+    radial-gradient(circle at 15% 10%, rgba(186, 230, 253, 0.9), transparent 28%),
+    radial-gradient(circle at 85% 18%, rgba(224, 242, 254, 0.95), transparent 32%),
+    linear-gradient(135deg, #effaff 0%, #f5fbff 42%, #e0f2fe 100%);
+  background-attachment: fixed;
   color: #111827;
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;

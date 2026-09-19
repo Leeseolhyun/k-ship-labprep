@@ -1,10 +1,11 @@
-import { CalendarCheck2, ShieldCheck, UsersRound } from "lucide-react";
+import { CalendarCheck2, FileUp, ShieldCheck, UsersRound } from "lucide-react";
+import { Link } from "react-router-dom";
 import FactoryBoard from "../components/process-balancing/FactoryBoard";
 import SummaryDashboard from "../components/process-balancing/SummaryDashboard";
 import { useFactoryContext } from "../context/FactoryContext";
 
 export default function ProcessBalancingPage() {
-  const { factories, paused, setPaused, log, completedCount } =
+  const { factories, paused, setPaused, log, completedCount, operationStarted, activePlanNote } =
     useFactoryContext();
 
   return (
@@ -17,6 +18,15 @@ export default function ProcessBalancingPage() {
         </p>
       </div>
 
+      {!operationStarted ? (
+        <section className="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center">
+          <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-accent-50 text-accent-600"><FileUp size={22} /></span>
+          <h2 className="mt-4 text-lg font-black text-slate-900">시작된 도면 기반 작업이 없습니다.</h2>
+          <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-500">도면·규정 분석에서 JSON을 생성하고 ‘인원 배치 시작’을 누르면, 필요한 역할별 인원과 예상 작업시간을 이 화면에서 확인할 수 있습니다.</p>
+          <Link to="/compliance" className="mt-5 inline-flex rounded-lg bg-accent-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-accent-700">도면 분석 시작</Link>
+        </section>
+      ) : <>
+      {activePlanNote && <div className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-xs leading-5 text-blue-800"><b>AI 검토 메모:</b> {activePlanNote}</div>}
       <FactoryBoard
         factories={factories}
         paused={paused}
@@ -51,6 +61,7 @@ export default function ProcessBalancingPage() {
         ))}
         </div>
       </section>
+      </>}
     </div>
   );
 }

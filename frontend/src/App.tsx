@@ -6,6 +6,7 @@ import DashboardPage from "./pages/DashboardPage";
 import CompliancePage from "./pages/CompliancePage";
 import ProcessBalancingPage from "./pages/ProcessBalancingPage";
 import MyPage from "./pages/MyPage";
+import SafetyMonitorPage from "./pages/SafetyMonitorPage";
 
 export default function App() {
   return (
@@ -16,6 +17,7 @@ export default function App() {
           <Route index element={<DashboardPage />} />
           <Route path="/compliance" element={<CompliancePage />} />
           <Route path="/process-balancing" element={<ProcessBalancingPage />} />
+          <Route path="/safety-monitor" element={<SafetyMonitorPage />} />
           <Route path="/mypage" element={<MyPage />} />
         </Route>
       </Route>

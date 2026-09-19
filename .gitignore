@@ -26,3 +26,11 @@ debug.log
 .DS_Store
 *.tsbuildinfo
 next-env.d.ts
+
+# Local presentation-generation artifacts (kept outside the shared application source)
+/.ppt-build/
+/.codex-finalizer/
+/ppt-output/
+
+# Test-runner caches created on this workstation
+/pytest-cache-files-*/

@@ -1,9 +1,11 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { LoaderCircle, Sparkles } from "lucide-react";
 import RequirementList from "../components/compliance/RequirementList";
 import DrawingUploader from "../components/compliance/DrawingUploader";
 import ComplianceResultView from "../components/compliance/ComplianceResultView";
 import { useBanner } from "../context/BannerContext";
+import { useFactoryContext } from "../context/FactoryContext";
 import { fetchComplianceResult } from "../api/complianceApi";
 import type {
   ComplianceResult,
@@ -20,12 +22,14 @@ export default function CompliancePage() {
   const [result, setResult] = useState<ComplianceResult | null>(null);
   const [error, setError] = useState("");
   const { pushBanner } = useBanner();
+  const { operationStarted, startOperations } = useFactoryContext();
+  const navigate = useNavigate();
 
   const hasContent = requirements.some((r) => r.text.trim().length > 0);
 
   const handleSubmit = async () => {
     if (!hasContent) {
-      setError("작업 조건 또는 검토 기준을 하나 이상 입력해 주세요.");
+      setError("요청사항을 하나 이상 입력해 주세요.");
       return;
     }
     if (images.length === 0) {
@@ -43,8 +47,8 @@ export default function CompliancePage() {
       setResult(data);
       pushBanner({
         type: "compliance",
-        title: "도면 규정 검토 결과 도착",
-        message: `${data.status === "적합" ? "적합 판정" : `부적합 ${data.violatedRules.length}건 확인`} - ${data.summary}`,
+        title: "도면 분석 완료",
+        message: "실행계획용 JSON이 생성되었습니다.",
         link: "/compliance",
       });
     } catch (e) {
@@ -58,12 +62,28 @@ export default function CompliancePage() {
     }
   };
 
+  const handleStartOperations = () => {
+    if (!result?.optimizationInput) return;
+    try {
+      startOperations(result.optimizationInput);
+      pushBanner({
+        type: "compliance",
+        title: "도면 기반 작업 시작",
+        message: "최적화 JSON을 고정 섹터별 실행계획으로 변환했습니다.",
+        link: "/process-balancing",
+      });
+      navigate("/process-balancing");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "실행계획을 시작하지 못했습니다.");
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-bold text-gray-900">도면 AI 분석 · 최적화 JSON 생성</h1>
+        <h1 className="text-xl font-bold text-gray-900">도면 분석 · 실행계획 생성</h1>
         <p className="mt-1 text-sm text-gray-500">
-          도면과 작업 조건을 등록하면 관련 기준을 검색해 공정 조건 JSON을 만들고, 후속 최적화 입력값으로 전달합니다.
+          도면을 넣고 실행계획을 생성하세요.
         </p>
       </div>
 
@@ -71,7 +91,7 @@ export default function CompliancePage() {
         <section className="space-y-6 rounded-xl border border-gray-200 bg-white p-5">
           <div>
             <h2 className="mb-3 text-sm font-semibold text-gray-800">
-              작업 조건 · 검토 기준
+              요청사항
             </h2>
             <RequirementList
               requirements={requirements}
@@ -88,6 +108,12 @@ export default function CompliancePage() {
 
           {error && <p className="text-sm text-red-500">{error}</p>}
 
+          {result?.analysisMode === "DEMO" && (
+            <p className="rounded-lg bg-sky-50 px-3 py-2 text-xs leading-5 text-sky-800">
+              현재는 시연용 실행계획입니다. Gemini 분석 서버를 연결하면 실제 분석 결과로 자동 전환됩니다.
+            </p>
+          )}
+
           <button
             type="button"
             onClick={handleSubmit}
@@ -99,7 +125,7 @@ export default function CompliancePage() {
             ) : (
               <Sparkles size={16} />
             )}
-            {loading ? "AI 분석 및 JSON 생성 중..." : "AI 분석 및 최적화 JSON 생성"}
+            {loading ? "실행계획 생성 중..." : "실행계획 생성"}
           </button>
         </section>
 
@@ -107,20 +133,17 @@ export default function CompliancePage() {
           {!result && !loading && (
             <div className="flex h-full min-h-64 flex-col items-center justify-center rounded-xl border border-dashed border-gray-300 p-8 text-center">
               <p className="text-sm font-medium text-gray-500">
-                작업 조건과 도면을 입력한 뒤 실행 버튼을 눌러주세요.
-              </p>
-              <p className="mt-1 text-xs text-gray-400">
-                결과가 이 영역에 표시됩니다.
+                도면과 요청사항을 등록하세요.
               </p>
             </div>
           )}
           {loading && (
             <div className="flex h-full min-h-64 flex-col items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white p-8 text-center">
               <LoaderCircle size={22} className="animate-spin text-accent-500" />
-              <p className="text-sm text-gray-500">관련 규정을 검색하고 공정 조건을 구조화하고 있습니다...</p>
+              <p className="text-sm text-gray-500">작업 계획을 만들고 있습니다...</p>
             </div>
           )}
-          {result && !loading && <ComplianceResultView result={result} />}
+          {result && !loading && <ComplianceResultView result={result} started={operationStarted} onStartOperations={handleStartOperations} />}
         </section>
       </div>
     </div>
