@@ -27,12 +27,12 @@ git switch 이설현
 
 ### 1. 프론트엔드
 
-Node.js 20 이상과 npm 또는 pnpm이 필요합니다.
+Node.js 20 이상과 pnpm이 필요합니다. (`corepack enable` 후 `corepack prepare pnpm@latest --activate`로 설치할 수 있습니다.)
 
 ```bash
 cd frontend
-npm install
-npm run dev
+pnpm install
+pnpm dev
 ```
 
 브라우저에서 터미널이 알려주는 주소(보통 `http://localhost:5173`)를 엽니다. 시연 계정은 `jihoon.seo@shipyard-ops.com` / `demo1234`입니다.
